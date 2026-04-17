@@ -16,7 +16,7 @@ from screening_pipeline import (
 )
 
 
-BASE_DIR = os.getcwd()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARTIFACT_DIR = os.path.join(BASE_DIR, "outputs_reservoir_screening")
 MODEL_DIR = os.path.join(ARTIFACT_DIR, "models")
 REFERENCE_DATA_PATH = os.path.join(ARTIFACT_DIR, "cleaned_feature_dataset.csv")
@@ -119,6 +119,22 @@ def dataframe_to_excel_bytes(df: pd.DataFrame) -> bytes:
 
 @lru_cache(maxsize=1)
 def load_bundle() -> dict:
+    required_paths = [
+        os.path.join(MODEL_DIR, "classifier.joblib"),
+        os.path.join(MODEL_DIR, "regressor.joblib"),
+        os.path.join(MODEL_DIR, "metadata.joblib"),
+        REFERENCE_DATA_PATH,
+        CLASSIFIER_IMPORTANCE_PATH,
+        MODEL_METRICS_PATH,
+    ]
+    missing_paths = [path for path in required_paths if not os.path.exists(path)]
+    if missing_paths:
+        joined = "\n".join(missing_paths)
+        raise FileNotFoundError(
+            "缺少部署所需模型产物，请确认仓库中包含以下文件:\n"
+            f"{joined}"
+        )
+
     classifier = joblib.load(os.path.join(MODEL_DIR, "classifier.joblib"))
     regressor = joblib.load(os.path.join(MODEL_DIR, "regressor.joblib"))
     metadata = joblib.load(os.path.join(MODEL_DIR, "metadata.joblib"))

@@ -26,6 +26,18 @@
 
 默认打开 [http://localhost:8501](http://localhost:8501)。
 
+## Streamlit Cloud 部署
+
+这个仓库已经包含网页运行所需的模型产物和依赖定义，可以直接部署到 Streamlit Community Cloud。
+
+部署时填写：
+
+- Repository: `StevenMa616777/co2-gasdrive-screening`
+- Branch: `main`
+- Main file path: `screening_app.py`
+
+建议在 `Advanced settings` 中选择 Python `3.12`。
+
 ## 命令行
 
 ```bash
@@ -40,5 +52,5 @@
 
 ## 说明
 
-- 仓库默认不包含训练输出、模型产物和原始业务数据
+- 仓库默认不包含训练输出和原始业务数据，但保留了网页部署所需的最小模型产物
 - 如需重新训练，请在本地准备原始 Excel 后运行 `screening_pipeline.py`

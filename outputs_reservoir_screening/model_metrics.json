@@ -1,0 +1,270 @@
+{
+  "data_summary": {
+    "raw_rows": 2101,
+    "labeled_rows": 1902,
+    "trainable_rows_after_quality_filter": 1349,
+    "positive_response_rows_after_quality_filter": 272,
+    "positive_response_ratio_after_quality_filter": 0.2016308376575241,
+    "train_rows": 1078,
+    "test_rows": 271
+  },
+  "cleaning_report": {
+    "rows_with_no_core_info": 598,
+    "rows_failing_training_quality": 737,
+    "rows_with_interval_parse_issue": 37,
+    "rows_with_invalid_porosity": 7,
+    "rows_with_invalid_saturation": 3,
+    "rows_with_invalid_density": 7,
+    "rows_with_invalid_viscosity": 0,
+    "selected_categorical_features": [
+      "reservoir_type_1",
+      "reservoir_type_2",
+      "layer_primary"
+    ],
+    "selected_numeric_features": [
+      "perforated_total_thickness_m",
+      "perforated_gross_span_m",
+      "perforation_segment_count",
+      "perforation_continuity_ratio",
+      "layer_token_count",
+      "reservoir_depth_m",
+      "effective_thickness_m",
+      "effective_to_perforated_ratio",
+      "effective_to_gross_ratio",
+      "formation_temperature_c",
+      "formation_pressure_mpa",
+      "pressure_gradient_mpa_per_100m",
+      "porosity_pct",
+      "porosity_range_ratio",
+      "permeability_log_md",
+      "permeability_range_ratio",
+      "oil_saturation_pct",
+      "oil_saturation_range_ratio",
+      "oil_density_g_cm3",
+      "viscosity_log_mpas",
+      "heavy_oil_flag",
+      "mobility_log_index",
+      "flow_capacity_log_kh",
+      "storage_capacity_index",
+      "reservoir_quality_index",
+      "depth_to_thickness_ratio",
+      "temperature_viscosity_coupling"
+    ]
+  },
+  "bucket_definition": {
+    "labels": [
+      "无效响应",
+      "低增效",
+      "高价值响应"
+    ],
+    "positive_split_cut": 1.046523178807945,
+    "reference_high_cut_old_definition": 4.664356255876532,
+    "description": "0=无效响应，1=正响应低增效，2=正响应高价值响应(原中增效+高增效合并)"
+  },
+  "default_decision_policy": {
+    "high_value_probability_threshold": 0.09487897902727127,
+    "response_probability_review_threshold": 0.20472252368927002,
+    "recommended_min_confidence": 0.6,
+    "review_relative_high_value_threshold": 0.6,
+    "description": "平衡型默认规则: 高价值响应概率达到平衡阈值且置信度>=0.6则推荐入选; 否则若响应概率达到平衡阈值、或高价值响应概率达到阈值的60%、或预测为低增效则进入人工复核; 其余暂缓。"
+  },
+  "model_scope": {
+    "categorical_features": [
+      "reservoir_type_1",
+      "reservoir_type_2",
+      "layer_primary"
+    ],
+    "numeric_features": [
+      "perforated_total_thickness_m",
+      "perforated_gross_span_m",
+      "perforation_segment_count",
+      "perforation_continuity_ratio",
+      "layer_token_count",
+      "reservoir_depth_m",
+      "effective_thickness_m",
+      "effective_to_perforated_ratio",
+      "effective_to_gross_ratio",
+      "formation_temperature_c",
+      "formation_pressure_mpa",
+      "pressure_gradient_mpa_per_100m",
+      "porosity_pct",
+      "porosity_range_ratio",
+      "permeability_log_md",
+      "permeability_range_ratio",
+      "oil_saturation_pct",
+      "oil_saturation_range_ratio",
+      "oil_density_g_cm3",
+      "viscosity_log_mpas",
+      "heavy_oil_flag",
+      "mobility_log_index",
+      "flow_capacity_log_kh",
+      "storage_capacity_index",
+      "reservoir_quality_index",
+      "depth_to_thickness_ratio",
+      "temperature_viscosity_coupling"
+    ],
+    "excluded_from_candidates": [
+      "油田",
+      "采油厂",
+      "年度",
+      "区块",
+      "井号",
+      "井别",
+      "井型",
+      "措施类型",
+      "施工始（年月日）",
+      "施工止（年月日）",
+      "施工天数（天）",
+      "注入方式",
+      "CO2注入量（t）",
+      "CO2注入速度（t/h）",
+      "CO2注入速度（t/d）",
+      "注入压力（MPa）",
+      "本井增油量（t）",
+      "对应井增油量（t）",
+      "合计增油量（t）",
+      "换油率（t）",
+      "备注"
+    ]
+  },
+  "classifier": {
+    "selected_model": "xgboost_classifier",
+    "cv_results": {
+      "logistic_regression": {
+        "cv_f1_macro_mean": 0.48071821934340253,
+        "cv_f1_weighted_mean": 0.7234649965885227,
+        "cv_balanced_accuracy_mean": 0.535615020767595
+      },
+      "random_forest_classifier": {
+        "cv_f1_macro_mean": 0.5435783190495658,
+        "cv_f1_weighted_mean": 0.7715686764632945,
+        "cv_balanced_accuracy_mean": 0.5818196419271126
+      },
+      "xgboost_classifier": {
+        "cv_f1_macro_mean": 0.5499165059639799,
+        "cv_f1_weighted_mean": 0.7888439494657895,
+        "cv_balanced_accuracy_mean": 0.5415321533019158
+      },
+      "lightgbm_classifier": {
+        "cv_f1_macro_mean": 0.5319778818853895,
+        "cv_f1_weighted_mean": 0.780509590306681,
+        "cv_balanced_accuracy_mean": 0.5353065331521689
+      }
+    },
+    "holdout_metrics": {
+      "accuracy": 0.8118081180811808,
+      "balanced_accuracy": 0.5709876543209876,
+      "f1_macro": 0.5807212528474888,
+      "f1_weighted": 0.8119522287517178,
+      "confusion_matrix": [
+        [
+          198,
+          4,
+          14
+        ],
+        [
+          6,
+          14,
+          8
+        ],
+        [
+          14,
+          5,
+          8
+        ]
+      ],
+      "labels": [
+        0,
+        1,
+        2
+      ],
+      "label_names": [
+        "无效响应",
+        "低增效",
+        "高价值响应"
+      ],
+      "recall_by_class": {
+        "无效响应": 0.9166666666666666,
+        "低增效": 0.5,
+        "高价值响应": 0.2962962962962963
+      }
+    }
+  },
+  "top_classifier_features": [
+    {
+      "feature": "reservoir_depth_m",
+      "importance_mean": 0.06091593840231368,
+      "importance_std": 0.019294662340473563
+    },
+    {
+      "feature": "pressure_gradient_mpa_per_100m",
+      "importance_mean": 0.049392179756109884,
+      "importance_std": 0.01610636721235139
+    },
+    {
+      "feature": "depth_to_thickness_ratio",
+      "importance_mean": 0.04657527621882199,
+      "importance_std": 0.01628626420114577
+    },
+    {
+      "feature": "porosity_pct",
+      "importance_mean": 0.04299282447438298,
+      "importance_std": 0.01607132639763805
+    },
+    {
+      "feature": "oil_saturation_pct",
+      "importance_mean": 0.04071114570732739,
+      "importance_std": 0.013410836201991377
+    },
+    {
+      "feature": "storage_capacity_index",
+      "importance_mean": 0.0397150191557441,
+      "importance_std": 0.016809367105740096
+    },
+    {
+      "feature": "perforation_continuity_ratio",
+      "importance_mean": 0.03131285063240536,
+      "importance_std": 0.011003841297867197
+    },
+    {
+      "feature": "effective_to_gross_ratio",
+      "importance_mean": 0.026022140205288886,
+      "importance_std": 0.012502449966368002
+    },
+    {
+      "feature": "porosity_range_ratio",
+      "importance_mean": 0.024069434887563457,
+      "importance_std": 0.007844694904167417
+    },
+    {
+      "feature": "oil_density_g_cm3",
+      "importance_mean": 0.023878989260284766,
+      "importance_std": 0.008019417353682381
+    },
+    {
+      "feature": "flow_capacity_log_kh",
+      "importance_mean": 0.02299086831755991,
+      "importance_std": 0.009243917155003068
+    },
+    {
+      "feature": "reservoir_quality_index",
+      "importance_mean": 0.021006627041183296,
+      "importance_std": 0.010740878709773156
+    },
+    {
+      "feature": "reservoir_type_1",
+      "importance_mean": 0.01816867497315015,
+      "importance_std": 0.01147290400472129
+    },
+    {
+      "feature": "formation_pressure_mpa",
+      "importance_mean": 0.017599129450604684,
+      "importance_std": 0.010225126953921986
+    },
+    {
+      "feature": "formation_temperature_c",
+      "importance_mean": 0.016863954084303374,
+      "importance_std": 0.00634126745926631
+    }
+  ]
+}

@@ -5,9 +5,16 @@ __pycache__/
 *.pyc
 
 outputs/
-outputs_reservoir_screening/
+outputs_reservoir_screening/*
+!outputs_reservoir_screening/classifier_feature_importance.csv
+!outputs_reservoir_screening/cleaned_feature_dataset.csv
+!outputs_reservoir_screening/model_metrics.json
+!outputs_reservoir_screening/models/
+outputs_reservoir_screening/models/*
+!outputs_reservoir_screening/models/classifier.joblib
+!outputs_reservoir_screening/models/metadata.joblib
+!outputs_reservoir_screening/models/regressor.joblib
 
 tool_run_output*.xlsx
 *_结果.xlsx
 .~*.xlsx
-
