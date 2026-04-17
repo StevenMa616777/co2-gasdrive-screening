@@ -1,0 +1,13 @@
+.DS_Store
+.matplotlib/
+.venv/
+__pycache__/
+*.pyc
+
+outputs/
+outputs_reservoir_screening/
+
+tool_run_output*.xlsx
+*_结果.xlsx
+.~*.xlsx
+
