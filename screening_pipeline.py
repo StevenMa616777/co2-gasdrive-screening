@@ -43,8 +43,9 @@ except ImportError:
     XGBRegressor = None
 
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = "/Users/cosmoshan/Documents/思达威实习材料/实验/注碳数据库/注碳数据库2024.xlsx"
-OUTPUT_DIR = os.path.join(os.getcwd(), "outputs_reservoir_screening")
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs_reservoir_screening")
 MODEL_DIR = os.path.join(OUTPUT_DIR, "models")
 RANDOM_STATE = 42
 
@@ -58,7 +59,6 @@ LAYER_COL = "层位"
 
 RAW_PROPERTY_CONFIG = {
     "油层中深\n（m）": {"alias": "reservoir_depth_m", "low": 0, "high": 8000},
-    "有效厚度\n（m）": {"alias": "effective_thickness_m", "low": 0, "high": 300},
     "地层温度\n（℃）": {"alias": "formation_temperature_c", "low": 0, "high": 200},
     "地层压力\n（MPa）": {"alias": "formation_pressure_mpa", "low": 0, "high": 80},
     "孔隙度\n（%）": {"alias": "porosity_pct", "low": 0, "high": 50},
@@ -70,7 +70,7 @@ RAW_PROPERTY_CONFIG = {
 }
 
 
-CATEGORICAL_FEATURES = ["reservoir_type_1", "reservoir_type_2", "layer_primary"]
+CATEGORICAL_FEATURES = ["layer_primary"]
 NUMERIC_FEATURES = [
     "perforated_total_thickness_m",
     "perforated_gross_span_m",
@@ -79,6 +79,10 @@ NUMERIC_FEATURES = [
     "layer_token_count",
     "reservoir_depth_m",
     "effective_thickness_m",
+    "effective_thickness_segment_count",
+    "effective_thickness_avg_segment_m",
+    "effective_thickness_max_segment_m",
+    "effective_thickness_range_ratio",
     "effective_to_perforated_ratio",
     "effective_to_gross_ratio",
     "formation_temperature_c",
@@ -90,15 +94,10 @@ NUMERIC_FEATURES = [
     "permeability_range_ratio",
     "oil_saturation_pct",
     "oil_saturation_range_ratio",
-    "oil_density_g_cm3",
-    "viscosity_log_mpas",
-    "heavy_oil_flag",
-    "mobility_log_index",
     "flow_capacity_log_kh",
     "storage_capacity_index",
     "reservoir_quality_index",
     "depth_to_thickness_ratio",
-    "temperature_viscosity_coupling",
 ]
 BUCKET_LABELS = ["无效响应", "低增效", "高价值响应"]
 
@@ -132,12 +131,16 @@ def extract_numbers(value) -> list[float]:
     return [float(match) for match in re.findall(r"\d+(?:\.\d+)?", normalized)]
 
 
-def parse_layer(value) -> tuple[str, float]:
+def split_value_tokens(value) -> list[str]:
     text = normalize_text(value)
     if text is np.nan:
-        return np.nan, np.nan
+        return []
     cleaned = re.sub(r"\s+", "", text)
-    tokens = [token for token in re.split(r"[+/、,，]", cleaned) if token]
+    return [token for token in re.split(r"[+/、,，;；]", cleaned) if token]
+
+
+def parse_layer(value) -> tuple[str, float]:
+    tokens = split_value_tokens(value)
     if not tokens:
         return np.nan, np.nan
     return tokens[0], float(len(tokens))
@@ -241,6 +244,60 @@ def summarize_perforation_interval(value) -> dict[str, float]:
     }
 
 
+def summarize_effective_thickness(value, low=0, high=300) -> dict[str, float]:
+    tokens = split_value_tokens(value)
+    if not tokens:
+        return {
+            "effective_thickness_m": np.nan,
+            "effective_thickness_segment_count": np.nan,
+            "effective_thickness_avg_segment_m": np.nan,
+            "effective_thickness_max_segment_m": np.nan,
+            "effective_thickness_range_ratio": np.nan,
+            "effective_thickness_invalid_count": 0.0,
+        }
+
+    segment_centers = []
+    segment_mins = []
+    segment_maxs = []
+    invalid = 0.0
+
+    for token in tokens:
+        numbers = extract_numbers(token)
+        if not numbers:
+            invalid += 1.0
+            continue
+        series = np.asarray(numbers, dtype=float)
+        valid = series[(series >= low) & (series <= high)]
+        invalid += float(series.size - valid.size)
+        if valid.size == 0:
+            continue
+        segment_centers.append(float(np.median(valid)))
+        segment_mins.append(float(valid.min()))
+        segment_maxs.append(float(valid.max()))
+
+    if not segment_centers:
+        return {
+            "effective_thickness_m": np.nan,
+            "effective_thickness_segment_count": np.nan,
+            "effective_thickness_avg_segment_m": np.nan,
+            "effective_thickness_max_segment_m": np.nan,
+            "effective_thickness_range_ratio": np.nan,
+            "effective_thickness_invalid_count": invalid,
+        }
+
+    total_center = float(np.sum(segment_centers))
+    total_min = float(np.sum(segment_mins))
+    total_max = float(np.sum(segment_maxs))
+    return {
+        "effective_thickness_m": total_center,
+        "effective_thickness_segment_count": float(len(segment_centers)),
+        "effective_thickness_avg_segment_m": float(np.mean(segment_centers)),
+        "effective_thickness_max_segment_m": float(np.max(segment_centers)),
+        "effective_thickness_range_ratio": float((total_max - total_min) / total_center) if total_center > 0 else np.nan,
+        "effective_thickness_invalid_count": invalid,
+    }
+
+
 def safe_ratio(numerator, denominator):
     if pd.isna(numerator) or pd.isna(denominator) or denominator <= 0:
         return np.nan
@@ -250,8 +307,6 @@ def safe_ratio(numerator, denominator):
 def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     features = pd.DataFrame(index=df.index)
 
-    features["reservoir_type_1"] = df["油藏类型1"].map(normalize_text).astype("object")
-    features["reservoir_type_2"] = df["油藏类型2"].map(normalize_text).astype("object")
     layer_info = df[LAYER_COL].apply(parse_layer)
     features["layer_primary"] = layer_info.apply(lambda item: item[0]).astype("object")
     features["layer_token_count"] = layer_info.apply(lambda item: item[1])
@@ -259,7 +314,10 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     interval_summary = df[PERFORATION_COL].apply(summarize_perforation_interval).apply(pd.Series)
     features = pd.concat([features, interval_summary], axis=1)
 
-    invalid_flag_columns = ["perforation_invalid_count"]
+    effective_summary = df["有效厚度\n（m）"].apply(summarize_effective_thickness).apply(pd.Series)
+    features = pd.concat([features, effective_summary], axis=1)
+
+    invalid_flag_columns = ["perforation_invalid_count", "effective_thickness_invalid_count"]
     for raw_col, config in RAW_PROPERTY_CONFIG.items():
         summary = df[raw_col].apply(lambda value: summarize_value(value, config["low"], config["high"])).apply(pd.Series)
         alias = config["alias"]
@@ -274,7 +332,6 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     features["porosity_range_ratio"] = features["porosity_pct_range_ratio"]
     features["permeability_range_ratio"] = features["permeability_md_range_ratio"]
     features["oil_saturation_range_ratio"] = features["oil_saturation_pct_range_ratio"]
-    features["heavy_oil_flag"] = np.where(best_viscosity >= 100, 1.0, np.where(best_viscosity.notna(), 0.0, np.nan))
 
     features["effective_to_perforated_ratio"] = features.apply(
         lambda row: safe_ratio(row["effective_thickness_m"], row["perforated_total_thickness_m"]),
@@ -289,8 +346,6 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         axis=1,
     )
 
-    mobility = features["permeability_md"] / best_viscosity
-    features["mobility_log_index"] = np.log1p(mobility.where(mobility > 0))
     flow_capacity = features["permeability_md"] * features["effective_thickness_m"]
     features["flow_capacity_log_kh"] = np.log1p(flow_capacity.where(flow_capacity > 0))
 
@@ -304,10 +359,6 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     )
     features["depth_to_thickness_ratio"] = features.apply(
         lambda row: safe_ratio(row["reservoir_depth_m"], row["effective_thickness_m"]),
-        axis=1,
-    )
-    features["temperature_viscosity_coupling"] = features.apply(
-        lambda row: safe_ratio(row["formation_temperature_c"], row["viscosity_log_mpas"]),
         axis=1,
     )
 
@@ -325,23 +376,23 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         ["perforated_total_thickness_m", "reservoir_depth_m", "effective_thickness_m"]
     ].notna().sum(axis=1)
     rock_availability = features[["porosity_pct", "permeability_md", "oil_saturation_pct"]].notna().sum(axis=1)
-    fluid_availability = features[["oil_density_g_cm3", "viscosity_log_mpas"]].notna().sum(axis=1)
     state_availability = features[["formation_temperature_c", "formation_pressure_mpa"]].notna().sum(axis=1)
+    fluid_availability = features[["oil_density_g_cm3", "viscosity_log_mpas"]].notna().sum(axis=1)
 
-    features["core_availability_count"] = (
-        geometry_availability + rock_availability + fluid_availability + state_availability
-    ).astype(float)
-    features["core_availability_ratio"] = features["core_availability_count"] / 10.0
+    features["core_availability_count"] = (geometry_availability + rock_availability + state_availability).astype(float)
+    features["core_availability_ratio"] = features["core_availability_count"] / 8.0
+    features["fluid_availability_count"] = fluid_availability.astype(float)
     features["quality_invalid_count"] = features[invalid_flag_columns].fillna(0).sum(axis=1)
     features["training_quality_flag"] = (
         (geometry_availability >= 2)
         & (rock_availability >= 2)
+        & (state_availability >= 1)
         & (features["core_availability_count"] >= 5)
         & (features["quality_invalid_count"] <= 1)
     ).astype(int)
     features["screening_confidence"] = (
-        0.7 * features["core_availability_ratio"].clip(0, 1)
-        + 0.3 * (1 - (features["quality_invalid_count"] / 3.0).clip(0, 1))
+        0.8 * features["core_availability_ratio"].clip(0, 1)
+        + 0.2 * (1 - (features["quality_invalid_count"] / 3.0).clip(0, 1))
     ).clip(0, 1)
 
     categorical_cols = [col for col in CATEGORICAL_FEATURES if features[col].notna().any()]
@@ -351,6 +402,7 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "rows_with_no_core_info": int((features["core_availability_count"] == 0).sum()),
         "rows_failing_training_quality": int((features["training_quality_flag"] == 0).sum()),
         "rows_with_interval_parse_issue": int((features["perforation_invalid_count"] > 0).sum()),
+        "rows_with_effective_thickness_parse_issue": int((features["effective_thickness_invalid_count"] > 0).sum()),
         "rows_with_invalid_porosity": int((features["porosity_pct_invalid_count"] > 0).sum()),
         "rows_with_invalid_saturation": int((features["oil_saturation_pct_invalid_count"] > 0).sum()),
         "rows_with_invalid_density": int((features["oil_density_g_cm3_invalid_count"] > 0).sum()),
@@ -360,6 +412,7 @@ def build_feature_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
                 + features["subsurface_viscosity_mpas_invalid_count"].fillna(0)
             ).gt(0).sum()
         ),
+        "rows_without_fluid_properties": int((features["fluid_availability_count"] == 0).sum()),
         "selected_categorical_features": categorical_cols,
         "selected_numeric_features": numeric_cols,
     }
@@ -925,6 +978,8 @@ def main() -> None:
             "categorical_features": CATEGORICAL_FEATURES,
             "numeric_features": NUMERIC_FEATURES,
             "excluded_from_candidates": [
+                "油藏类型1",
+                "油藏类型2",
                 "油田",
                 "采油厂",
                 "年度",
@@ -941,6 +996,9 @@ def main() -> None:
                 "CO2注入速度（t/h）",
                 "CO2注入速度（t/d）",
                 "注入压力（MPa）",
+                "地面原油密度（主模型默认不使用）",
+                "50℃原油粘度（主模型默认不使用）",
+                "地下原油粘度（主模型默认不使用）",
                 "本井增油量（t）",
                 "对应井增油量（t）",
                 "合计增油量（t）",

@@ -44,8 +44,6 @@ RAW_INPUT_COLUMNS = [
 
 
 FEATURE_LABELS = {
-    "reservoir_type_1": "油藏类型1",
-    "reservoir_type_2": "油藏类型2",
     "layer_primary": "主层位",
     "perforated_total_thickness_m": "射孔总厚度",
     "perforated_gross_span_m": "射孔总跨度",
@@ -53,7 +51,11 @@ FEATURE_LABELS = {
     "perforation_continuity_ratio": "射孔连续性",
     "layer_token_count": "层位组合数",
     "reservoir_depth_m": "油层中深",
-    "effective_thickness_m": "有效厚度",
+    "effective_thickness_m": "有效厚度总和",
+    "effective_thickness_segment_count": "有效厚度段数",
+    "effective_thickness_avg_segment_m": "平均单段有效厚度",
+    "effective_thickness_max_segment_m": "最大单段有效厚度",
+    "effective_thickness_range_ratio": "有效厚度离散度",
     "effective_to_perforated_ratio": "净厚占射孔比",
     "effective_to_gross_ratio": "净厚占总跨度比",
     "formation_temperature_c": "地层温度",
@@ -65,15 +67,10 @@ FEATURE_LABELS = {
     "permeability_range_ratio": "渗透率离散度",
     "oil_saturation_pct": "含油饱和度",
     "oil_saturation_range_ratio": "含油饱和度离散度",
-    "oil_density_g_cm3": "地面原油密度",
-    "viscosity_log_mpas": "原油粘度水平",
-    "heavy_oil_flag": "重油特征",
-    "mobility_log_index": "流度指标",
     "flow_capacity_log_kh": "流动能力(kh)",
     "storage_capacity_index": "储集能力",
     "reservoir_quality_index": "储层质量指数",
     "depth_to_thickness_ratio": "埋深厚度比",
-    "temperature_viscosity_coupling": "温度-粘度耦合",
 }
 
 
@@ -86,14 +83,15 @@ NUMERIC_REASON_TEMPLATES = {
     "porosity_pct": ("较好", "偏低"),
     "perforated_gross_span_m": ("较大", "偏小"),
     "perforated_total_thickness_m": ("较厚", "偏薄"),
+    "effective_thickness_m": ("较大", "偏小"),
+    "effective_thickness_avg_segment_m": ("较厚", "偏薄"),
+    "effective_thickness_max_segment_m": ("较厚", "偏薄"),
     "effective_to_gross_ratio": ("较高", "偏低"),
     "effective_to_perforated_ratio": ("较高", "偏低"),
     "storage_capacity_index": ("较强", "偏弱"),
     "reservoir_quality_index": ("较高", "偏低"),
     "oil_saturation_pct": ("较高", "偏低"),
     "permeability_log_md": ("较高", "偏低"),
-    "mobility_log_index": ("较好", "偏弱"),
-    "viscosity_log_mpas": ("较低", "偏高"),
 }
 
 
@@ -201,6 +199,8 @@ def make_quality_note(row: pd.Series) -> str:
         notes.append("核心油藏参数不足，建议人工复核")
     if row.get("quality_invalid_count", 0) > 0:
         notes.append("存在区间解析或异常值，系统已自动降权")
+    if row.get("fluid_availability_count", 0) == 0:
+        notes.append("缺少密度/粘度，当前按基础油藏模型评估")
     if row.get("screening_confidence", 0) < 0.5:
         notes.append("置信度偏低，建议结合地质认识判断")
     if not notes:
